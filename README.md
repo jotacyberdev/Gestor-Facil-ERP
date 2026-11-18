@@ -1,66 +1,45 @@
-# 🏦 Sistema Bancário em Java (POO)
+# 📊 Gestor Fácil ERP
 
-Um projeto prático desenvolvido em Java para simular operações bancárias básicas, aplicando os principais pilares da **Programação Orientada a Objetos (POO)**.
+Sistema de gestão empresarial (**mini ERP**) leve e prático, desenvolvido com **JavaScript puro (Vanilla JS)**, **HTML5** e **CSS3**. A aplicação funciona totalmente offline utilizando o **LocalStorage** do navegador para armazenar e gerenciar os dados.
 
 ## 📋 Sobre o Projeto
 
-O sistema modela a estrutura de um banco simples, permitindo gerenciar clientes e diferentes modalidades de contas bancárias. O foco principal é demonstrar na prática como organizar regras de negócio utilizando classes, herança e sobrescrita de métodos.
-
-### Conceitos de POO Aplicados
-* **Encapsulamento:** Proteção dos atributos das classes (`saldo`, `titular`, `nome`, `limite`) com acesso controlado por métodos públicos e protegidos (`protected`).
-* **Herança:** Criação de tipos específicos de conta (`ContaComum` e `ContaEspecial`) a partir de uma classe base (`ContaBancaria`).
-* **Polimorfismo:** Sobrescrita (`@Override`) do método `sacar` na `ContaEspecial` para considerar o valor do limite adicional além do saldo disponível.
-* **Composição / Associação:** Relacionamento entre `ContaBancaria` e `Cliente`, além da classe `Banco` atuando como intermediária nas transações.
+O **Gestor Fácil ERP** foi criado para centralizar as principais rotinas administrativas de pequenos negócios e autônomos em uma única interface web, sem depender de servidores externos ou bancos de dados complexos para rodar.
 
 ## 🚀 Funcionalidades
 
-* **Cadastro de Clientes:** Criação de titulares vinculados às contas.
-* **Conta Comum:** Permite saques apenas dentro do limite do saldo disponível em conta.
-* **Conta Especial:** Permite saques utilizando o saldo somado a um limite de crédito pré-aprovado (cheque especial).
-* **Operações Bancárias:**
-  * Depósito de valores positivos.
-  * Saque com validação de saldo/limite.
-  * Transferência segura entre contas (só credita no destino se o débito na origem for bem-sucedido).
+* **💰 Controle Financeiro:** Registro e acompanhamento de receitas, despesas e fluxo de caixa.
+* **📦 Gestão de Estoque:** Cadastro de produtos, controle de entradas, saídas e quantidades disponíveis.
+* **🤝 CRM (Gestão de Clientes):** Cadastro e organização de informações e histórico de clientes.
+* **📅 Agenda:** Organização de compromissos, tarefas e prazos importantes.
+* **📈 Relatórios:** Visualização consolidada dos dados operacionais e financeiros para tomada de decisão.
+* **💾 Funcionamento Offline:** Persistência automática de todos os registros no navegador via `LocalStorage`.
+
+## 🛠️ Tecnologias Utilizadas
+
+* **HTML5:** Estruturação semântica das telas e formulários.
+* **CSS3:** Estilização, layout responsivo e organização visual.
+* **JavaScript (Vanilla JS):** Lógica de negócio, manipulação do DOM, cálculos e integração com `LocalStorage`.
 
 ## 🗂️ Estrutura dos Arquivos
 
-* `Cliente.java`: Representa o titular da conta bancária.
-* `ContaBancaria.java`: Classe base com os atributos e comportamentos padrão de uma conta.
-* `ContaComum.java`: Especialização de `ContaBancaria` sem limite extra.
-* `ContaEspecial.java`: Especialização de `ContaBancaria` com regra própria de saque utilizando limite.
-* `Banco.java`: Classe responsável por intermediar saques, depósitos e transferências entre contas.
-* `Main.java`: Classe principal contendo cenários de teste e exibição dos saldos finais.
+```text
+├── index.html    # Estrutura principal e telas do sistema
+├── style.css     # Estilização e layout da aplicação
+├── app.js        # Lógica de funcionamento, módulos e regras do LocalStorage
+└── README.md     # Documentação do projeto
+```
 
 ## 💻 Como Executar
 
-### Pré-requisitos
-* Ter o **Java JDK** (versão 8 ou superior) instalado na máquina.
+Como o projeto utiliza apenas tecnologias web nativas, não há necessidade de instalar dependências ou configurar servidores:
 
-### Passo a passo
 1. Clone este repositório:
    ```bash
    git clone https://github.com
    ```
 2. Acesse a pasta do projeto:
    ```bash
-   cd sistema-bancario-java-poo
+   cd Gestor-Facil-ERP
    ```
-3. Compile os arquivos `.java`:
-   ```bash
-   javac *.java
-   ```
-4. Execute a classe principal:
-   ```bash
-   java Main
-   ```
-
-## 📊 Exemplo de Saída
-
-Ao executar a classe `Main.java` com os cenários de teste configurados, o console exibirá o saldo final de cada cliente após todas as movimentações:
-
-```text
-João: R\$ -230.00
-Maria: R\$ 350.00
-Pedro: R\$ 90.00
-```
-*(Nota: O saldo de João fica negativo pois ele utiliza o limite de R$ 300,00 da sua Conta Especial).*
+3. Abra o arquivo **`index.html`** diretamente no seu navegador de preferência.
