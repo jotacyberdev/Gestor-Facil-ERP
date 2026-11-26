@@ -182,10 +182,7 @@ let nfTab = "emitidas";
 let stockTab = "produtos";
 
 function brandLogoSVG() {
-  return `<svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
-    <path d="M19.8 9.2A7.8 7.8 0 1 0 21.5 15.2H14.2V12.2H24.6V14.7C24.6 20.5 20.1 24.8 14.1 24.8C8.1 24.8 3.4 20.1 3.4 14.1C3.4 8.1 8.1 3.4 14.1 3.4C17.4 3.4 20.3 4.8 22.3 7.1L19.8 9.2Z" fill="currentColor"/>
-    <circle cx="22.4" cy="6.6" r="2.1" fill="#2a694d"/>
-  </svg>`;
+  return `<img src="logo.jpeg" alt="Logo Gestor Fácil">`;
 }
 
 function readStore() {
@@ -701,7 +698,9 @@ function renderTableRow(key, item, columns) {
   return `<tr data-search="${searchBlob}" data-status="${safe(computedStatus)}">
     ${cells}
     <td>
-      <div class="row-actions">
+    <div class="row-actions">
+        ${key === "caderneta" && Number(item.valor) > Number(item.pago) ? `<button class="tiny-button" data-action="whats:caderneta:${item.id}" title="Cobrar via WhatsApp">WhatsApp</button>` : ""}
+        ${key === "agendamentos" && item.status !== "Cancelado" && item.status !== "Concluído" ? `<button class="tiny-button" data-action="whats:agendamentos:${item.id}" title="Lembrar via WhatsApp">WhatsApp</button>` : ""}
         ${key === "caderneta" && Number(item.valor) > Number(item.pago) ? `<button class="tiny-button" data-action="pay:${item.id}">Receber</button>` : ""}
         <button class="tiny-button" data-action="edit:${key}:${item.id}">Editar</button>
         <button class="tiny-button danger" data-action="delete:${key}:${item.id}">Excluir</button>
@@ -2445,6 +2444,35 @@ function deleteRecord(key, id) {
 }
 
 /* ===================== EVENTOS GLOBAIS & FILTROS ===================== */
+function enviarWhatsApp(tipo, id) {
+  const item = records(tipo).find(r => r.id === id);
+  if (!item) return;
+
+  const client = records("clientes").find(c =>
+    (item.clienteId && c.id === item.clienteId) ||
+    (item.cliente && c.nome.trim().toLowerCase() === item.cliente.trim().toLowerCase())
+  );
+
+  const phoneDigits = onlyDigits(client?.telefone || "");
+  if (phoneDigits.length < 10) {
+    toast("Telefone do cliente não encontrado ou inválido. Confira o cadastro em Clientes.");
+    return;
+  }
+
+  const empresa = currentUser()?.fiscalConfig?.nomeFantasia || currentUser()?.nome || "nosso negócio";
+  const nomeCliente = client?.nome || item.cliente || "Cliente";
+  let mensagem = "";
+
+  if (tipo === "caderneta") {
+    const restante = Math.max(0, Number(item.valor || 0) - Number(item.pago || 0));
+    mensagem = `Olá, ${nomeCliente}! Tudo bem? Passando para lembrar da pendência referente a "${item.descricao}" (${empresa}), no valor restante de ${money(restante)}, com vencimento em ${shortDate(item.vencimento)}.`;
+  } else if (tipo === "agendamentos") {
+    mensagem = `Olá, ${nomeCliente}! Passando para confirmar seu agendamento de "${item.servico}" (${empresa}) no dia ${shortDate(item.data)} às ${item.horario}. Podemos confirmar?`;
+  }
+
+  const url = `https://wa.me/55${phoneDigits}?text=${encodeURIComponent(mensagem)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 function bindAppEvents() {
   document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => {
