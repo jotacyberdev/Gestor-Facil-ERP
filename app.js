@@ -1370,7 +1370,18 @@ function openQuickClientSubDialog(onCreated) {
   const cepInput = sub.querySelector("#qc-cep");
   cpfInput.addEventListener("input", () => { cpfInput.value = formatCPF(cpfInput.value); });
   telInput.addEventListener("input", () => { telInput.value = formatPhone(telInput.value); });
-  cepInput.addEventListener("input", () => { cepInput.value = formatCEP(cepInput.value); });
+  cepInput.addEventListener("input", () => {
+    cepInput.value = formatCEP(cepInput.value);
+    if (onlyDigits(cepInput.value).length === 8) {
+      buscarEnderecoPorCEP(cepInput.value, {
+        estado: sub.querySelector("#qc-estado"),
+        cidade: sub.querySelector("#qc-cidade"),
+        bairro: sub.querySelector("#qc-bairro"),
+        rua: sub.querySelector("#qc-rua"),
+        numero: sub.querySelector("#qc-numero")
+      });
+    }
+  });
 
   sub.querySelectorAll("[data-sub-close]").forEach(b => b.addEventListener("click", () => sub.close()));
   sub.querySelector("#quick-client-form").addEventListener("submit", e => {
@@ -2219,7 +2230,18 @@ function openRecordDialog(key, id = null) {
     inp.addEventListener("input", () => { inp.value = formatCPF(inp.value); });
   });
   dialog.querySelectorAll('input[data-mask="cep"]').forEach(inp => {
-    inp.addEventListener("input", () => { inp.value = formatCEP(inp.value); });
+    inp.addEventListener("input", () => {
+      inp.value = formatCEP(inp.value);
+      if (key === "clientes" && onlyDigits(inp.value).length === 8) {
+        buscarEnderecoPorCEP(inp.value, {
+          estado: dialog.querySelector("#field-estado"),
+          cidade: dialog.querySelector("#field-cidade"),
+          bairro: dialog.querySelector("#field-bairro"),
+          rua: dialog.querySelector("#field-rua"),
+          numero: dialog.querySelector("#field-numero")
+        });
+      }
+    });
   });
 
   if (key === "estoque") {
@@ -2510,11 +2532,30 @@ function bindAppEvents() {
   document.querySelector("#nf-date-to")?.addEventListener("change", applyNfFilter);
 
   // Formulário de Configurações Fiscais
+ // Formulário de Configurações Fiscais
   const fcCnpj = document.querySelector("#fc-cnpj");
   const fcCep = document.querySelector("#fc-cep");
-  fcCnpj?.addEventListener("input", () => { fcCnpj.value = formatCNPJ(fcCnpj.value); });
-  fcCep?.addEventListener("input", () => { fcCep.value = formatCEP(fcCep.value); });
+  const fcForm = document.querySelector("#fiscal-config-form");
 
+  fcCnpj?.addEventListener("input", () => {
+    fcCnpj.value = formatCNPJ(fcCnpj.value);
+    if (onlyDigits(fcCnpj.value).length === 14) {
+      buscarDadosPorCNPJ(fcCnpj.value, fcForm);
+    }
+  });
+
+  fcCep?.addEventListener("input", () => {
+    fcCep.value = formatCEP(fcCep.value);
+    if (onlyDigits(fcCep.value).length === 8) {
+      buscarEnderecoPorCEP(fcCep.value, {
+        estado: fcForm.querySelector("#fc-estado"),
+        cidade: fcForm.querySelector("#fc-cidade"),
+        bairro: fcForm.querySelector("#fc-bairro"),
+        rua: fcForm.querySelector("#fc-rua"),
+        numero: fcForm.querySelector("#fc-numero")
+      });
+    }
+  });
   document.querySelector("#fiscal-config-form")?.addEventListener("submit", e => {
     e.preventDefault();
     const errEl = document.querySelector("#fc-error");
