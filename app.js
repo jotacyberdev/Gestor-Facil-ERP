@@ -1843,6 +1843,16 @@ function openNewFiscalDialog(preselectedSaleId = "") {
       ]
     };
 
+    const sefaz = simularTransmissaoSEFAZ(nfDoc);
+    nfDoc.status = "Autorizada (Homologação)";
+    nfDoc.chaveAcesso = sefaz.chaveAcesso;
+    nfDoc.protocoloAutorizacao = sefaz.protocolo;
+    nfDoc.numero = sefaz.numeroNota;
+    nfDoc.historico.push({
+      dataHora: new Date().toLocaleString("pt-BR"),
+      evento: `Autorizado o uso da ${nfDoc.modelo} - Protocolo ${sefaz.protocolo}`
+    });
+
     records("notasFiscais").push(nfDoc);
     persistUser();
     dialog.close();
@@ -2076,6 +2086,15 @@ function renderSettings() {
       <aside class="note-box">
         <strong>Sobre seus dados e armazenamento</strong>
         <p>Os dados e a foto de perfil ficam vinculados exclusivamente à sua conta neste navegador (LocalStorage). Para sincronização em nuvem entre vários dispositivos, é necessário conectar um servidor backend.</p>
+        <div class="dialog-actions" style="margin-top:13px; flex-wrap:wrap;">
+        <button type="button" class="secondary-button" data-action="export-json">Exportar Backup (.json)</button>
+        <label class="secondary-button" style="cursor:pointer; display:inline-flex; align-items:center;">
+          Restaurar Backup (.json)
+          <input type="file" id="import-json-input" accept=".json,application/json" hidden>
+        </label>
+        <button type="button" class="secondary-button" data-action="cloud-save">Salvar na Nuvem (Supabase)</button>
+        <button type="button" class="secondary-button" data-action="cloud-load">Baixar da Nuvem</button>
+      </div>
         <button class="danger-button" data-action="clear-data" style="margin-top:13px">Apagar meus dados</button>
       </aside>
     </div>`;
@@ -2473,6 +2492,128 @@ function enviarWhatsApp(tipo, id) {
   const url = `https://wa.me/55${phoneDigits}?text=${encodeURIComponent(mensagem)}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
+function simularTransmissaoSEFAZ(nfDoc) {
+  const uf = "35";
+  const aamm = new Date().toISOString().slice(2, 7).replace("-", "");
+  const cnpj = onlyDigits(currentUser()?.fiscalConfig?.cnpj || "00000000000191").padStart(14, "0").slice(0, 14);
+  const mod = nfDoc.modelo.startsWith("NFC-e") ? "65" : nfDoc.modelo.startsWith("NFS-e") ? "99" : "55";
+  const serie = "001";
+  const numero = String(Math.floor(100000 + Math.random() * 899999)).padStart(9, "0");
+  const tpEmis = "1";
+  const cNF = String(Math.floor(10000000 + Math.random() * 89999999));
+
+  const base43 = `${uf}${aamm}${cnpj}${mod}${serie}${numero}${tpEmis}${cNF}`;
+  let peso = 2, soma = 0;
+  for (let i = base43.length - 1; i >= 0; i--) {
+    soma += Number(base43[i]) * peso;
+    peso = peso === 9 ? 2 : peso + 1;
+  }
+  const resto = soma % 11;
+  const dv = resto < 2 ? 0 : 11 - resto;
+
+  return {
+    chaveAcesso: `${base43}${dv}`,
+    protocolo: `135${Date.now().toString().slice(-12)}`,
+    numeroNota: numero,
+    serie
+  };
+}
+
+function exportarBackupJSON() {
+  const user = currentUser();
+  if (!user) return;
+  const blob = new Blob([JSON.stringify(user, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gestor-facil-backup-${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Backup JSON exportado com sucesso!");
+}
+
+function importarBackupJSON(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result || "{}"));
+      if (!parsed || typeof parsed !== "object") throw new Error("Arquivo inválido");
+      const currentEmail = state.current;
+      state.users[currentEmail] = ensureUserSchema({
+        ...parsed,
+        email: currentEmail,
+        passwordHash: currentUser().passwordHash,
+        salt: currentUser().salt
+      });
+      saveStore();
+      toast("Backup restaurado com sucesso!");
+      render();
+    } catch {
+      toast("Arquivo JSON inválido. Selecione um backup exportado pelo Gestor Fácil.");
+    }
+  };
+  reader.readAsText(file);
+}
+const SUPABASE_URL = "https://pmjgndhaqghchzqvzxsr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_8J4eRBN3piYfSZkdTZD45g_SqFwtSWO";
+
+async function salvarNaNuvemSupabase() {
+  const user = currentUser();
+  if (!user) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/gestor_backups`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({
+        email: state.current,
+        dados: user,
+        atualizado_em: new Date().toISOString()
+      })
+    });
+    if (!res.ok) throw new Error("Falha ao sincronizar");
+    toast("Dados salvos na nuvem (Supabase) com sucesso!");
+  } catch {
+    toast("Erro ao conectar com o Supabase. Verifique a chave.");
+  }
+}
+
+async function carregarDaNuvemSupabase() {
+  if (!state.current) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/gestor_backups?email=eq.${encodeURIComponent(state.current)}&select=dados`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
+    if (!res.ok) throw new Error("Falha ao buscar");
+    const rows = await res.json();
+    if (!rows.length || !rows[0].dados) {
+      toast("Nenhum backup encontrado na nuvem para este e-mail.");
+      return;
+    }
+    state.users[state.current] = ensureUserSchema({
+      ...rows[0].dados,
+      email: state.current,
+      passwordHash: currentUser().passwordHash,
+      salt: currentUser().salt
+    });
+    saveStore();
+    toast("Dados restaurados da nuvem (Supabase)!");
+    render();
+  } catch {
+    toast("Erro ao baixar dados do Supabase.");
+  }
+}
 
 function bindAppEvents() {
   document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => {
@@ -2560,7 +2701,6 @@ function bindAppEvents() {
   document.querySelector("#nf-date-to")?.addEventListener("change", applyNfFilter);
 
   // Formulário de Configurações Fiscais
- // Formulário de Configurações Fiscais
   const fcCnpj = document.querySelector("#fc-cnpj");
   const fcCep = document.querySelector("#fc-cep");
   const fcForm = document.querySelector("#fiscal-config-form");
@@ -2662,6 +2802,11 @@ function bindAppEvents() {
     toast("Perfil atualizado.");
     render();
   });
+  document.querySelector("#import-json-input")?.addEventListener("change", e => {
+    const file = e.target.files?.[0];
+    if (file) importarBackupJSON(file);
+    e.target.value = "";
+  });
 }
 
 function handleAction(action) {
@@ -2670,6 +2815,9 @@ function handleAction(action) {
   if (action === "logout") { state.current = null; saveStore(); renderAuth("login"); return; }
   if (action === "quick-add") return showQuickAdd();
   if (action === "new-nf") return openNewFiscalDialog();
+  if (action === "export-json") { exportarBackupJSON(); return; }
+  if (action === "cloud-save") { salvarNaNuvemSupabase(); return; }
+  if (action === "cloud-load") { carregarDaNuvemSupabase(); return; }
   if (action === "clear-data") {
     if (confirm("Isso apagará sua conta e todos os registros deste navegador. Continuar?")) {
       delete state.users[state.current];
